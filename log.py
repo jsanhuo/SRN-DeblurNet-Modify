@@ -21,15 +21,17 @@ class TensorBoardX:
                 self.writer = {}
                 self.writer['train'] = SummaryWriter(self.path+'/train')
                 self.writer['val'] = SummaryWriter( self.path + '/val' )
+                print(config_filename)
                 os.system('cp {} {}/'.format(config_filename , self.path))
                 break
-                
+
+    # 添加一个数据
     def add_scalar(self, index, val, niter , logtype):
         self.writer[logtype].add_scalar(index, val, niter)
-
+    # 添加多个数据
     def add_scalars(self, index, group_dict, niter , logtype):
         self.writer[logtype].add_scalar(index, group_dict, niter)
-
+    # 添加图片
     def add_image_grid(self, index, ngrid, x, niter , logtype):
         grid = utils.make_image_grid(x, ngrid)
         self.writer[logtype].add_image(index, grid, niter)
@@ -38,7 +40,6 @@ class TensorBoardX:
         self.writer[logtype].add_image(index, x, niter)
     def add_histogram(self, index , x , niter , logtype):
         self.writer[logtype].add_histogram( index , x , niter )
-
 
     def add_graph(self, index, x_input, model , logtype):
         torch.onnx.export(model, x_input, os.path.join(self.path, "{}.proto".format(index)), verbose=True)
