@@ -144,15 +144,19 @@ if __name__ == "__main__":
                     db256, db128, db64 = net(batch['img256'], batch['img128'], batch['img64'])
                     # 计算损失
                     loss = compute_loss(db256, db128, db64, batch)
+                    # 将值变为float 便于计算
                     for k in loss:
                         loss[k] = float(loss[k].cpu().detach().numpy())
+                    # 添加进val_loss_log_list内记录
                     val_loss_log_list.append({k: loss[k] for k in loss})
                     # vloss += loss['mse']
                     # vpsnr += loss['psnr']
                 # train_loss_log_dict = {k: float(np.mean([dic[k] for dic in train_loss_log_list])) for k in
                 #                        train_loss_log_list[0]}
+                # 求平均val_loss_log_dict 为 mse和psnr的均值
                 val_loss_log_dict = {k: float(np.mean([dic[k] for dic in val_loss_log_list])) for k in
                                      val_loss_log_list[0]}
+                # 向tensorboard里面写入
                 for k, v in val_loss_log_dict.items():
                     tb.add_scalar(k, v, epoch, 'val')
                 # tb.add_scalar('mse', vloss / len(val_dataloader), epoch, 'val')
@@ -161,17 +165,19 @@ if __name__ == "__main__":
                     best_val_psnr = val_loss_log_dict['psnr']
                     save_model(net, tb.path, epoch)
                     save_optimizer(optimizer, net, tb.path, epoch)
-
+                # 清空集合
                 train_loss_log_list.clear()
                 val_loss_log_list.clear()
-
+                # 获得时间
                 tt = time()
+                # 拼接日志消息
                 log_msg = ""
                 log_msg += "epoch {} , {:.2f} imgs/s".format(epoch, (
                             config.train['log_epoch'] * len(train_dataloader) * config.train['batch_size'] + len(
                         val_dataloader) * config.train['val_batch_size']) / (tt - t))
 
                 log_msg += " | train : "
+                # 将训练集信息写入
                 for idx, k_v in enumerate(train_loss_log_dict.items()):
                     k, v = k_v
                     if k == 'acc':
@@ -179,14 +185,17 @@ if __name__ == "__main__":
                     else:
                         log_msg += "{} {:.5f} {}".format(k, v, ',')
                 log_msg += "  | val : "
+                # 将验证机消息写入
                 for idx, k_v in enumerate(val_loss_log_dict.items()):
                     k, v = k_v
                     if k == 'acc':
                         log_msg += "{} {:.3%} {}".format(k, v, ',')
                     else:
                         log_msg += "{} {:.5f} {}".format(k, v, ',' if idx < len(val_loss_log_list) - 1 else '')
+                # 将消息输出到控制台
                 tqdm.write(log_msg, file=sys.stdout)
                 sys.stdout.flush()
+                # 写入日志文件
                 log_file.write(log_msg + '\n')
                 log_file.flush()
                 t = time()
