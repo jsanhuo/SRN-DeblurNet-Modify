@@ -12,10 +12,12 @@ from tqdm import tqdm
 from time import time
 import copy
 import sys
-
+from metric import PSNR,SSIM
 log10 = np.log(10)
 MAX_DIFF = 2
 
+p_s = PSNR()
+s_s = SSIM()
 
 # 计算损失
 def compute_loss(db256, db128, db64, batch):
@@ -23,11 +25,15 @@ def compute_loss(db256, db128, db64, batch):
 
     loss = 0
     loss += mse(db256, batch['label256'])
-    psnr = 10 * torch.log(MAX_DIFF ** 2 / loss) / log10
+    # psnr = 10 * torch.log(MAX_DIFF ** 2 / loss) / log10
     loss += mse(db128, batch['label128'])
     loss += mse(db64, batch['label64'])
-
-    return {'mse': loss, 'psnr': psnr}
+    # 计算psnr
+    psnr = p_s(batch['label256'],db256)
+    # 计算ssim
+    ssim = s_s(batch['label256'],db256)
+    # 返回mse，psnr，ssim
+    return {'mse': loss, 'psnr': psnr,'ssim':ssim}
 
 
 # 反向传播
@@ -118,15 +124,10 @@ if __name__ == "__main__":
             for k in loss:
                 loss[k] = float(loss[k].cpu().detach().numpy())
             train_loss_log_list.append({k: loss[k] for k in loss})
-            # tloss += loss['mse']
-            # tpsnr += loss['psnr']
-            # for k, v in loss.items():
-            #     tb.add_scalar(k, v, epoch * len(train_dataloader) + step, 'train')
-        # 添加mse和psnr
-        # tb.add_scalar('mse', tloss/len(train_dataloader), epoch, 'train')
-        # tb.add_scalar('psnr', tpsnr/len(train_dataloader), epoch, 'train')
+        # 计算训练集的mse和psnr均值
         train_loss_log_dict = {k: float(np.mean([dic[k] for dic in train_loss_log_list])) for k in
                                train_loss_log_list[0]}
+        # 写入tensorboard
         for k, v in train_loss_log_dict.items():
             tb.add_scalar(k, v, epoch, 'train')
         # vloss = 0
@@ -156,6 +157,7 @@ if __name__ == "__main__":
                 # 求平均val_loss_log_dict 为 mse和psnr的均值
                 val_loss_log_dict = {k: float(np.mean([dic[k] for dic in val_loss_log_list])) for k in
                                      val_loss_log_list[0]}
+
                 # 向tensorboard里面写入
                 for k, v in val_loss_log_dict.items():
                     tb.add_scalar(k, v, epoch, 'val')
@@ -180,18 +182,12 @@ if __name__ == "__main__":
                 # 将训练集信息写入
                 for idx, k_v in enumerate(train_loss_log_dict.items()):
                     k, v = k_v
-                    if k == 'acc':
-                        log_msg += "{} {:.3%} {}".format(k, v, ',')
-                    else:
-                        log_msg += "{} {:.5f} {}".format(k, v, ',')
+                    log_msg += "{} {:.5f} {}".format(k, v, ',')
                 log_msg += "  | val : "
                 # 将验证机消息写入
                 for idx, k_v in enumerate(val_loss_log_dict.items()):
                     k, v = k_v
-                    if k == 'acc':
-                        log_msg += "{} {:.3%} {}".format(k, v, ',')
-                    else:
-                        log_msg += "{} {:.5f} {}".format(k, v, ',' if idx < len(val_loss_log_list) - 1 else '')
+                    log_msg += "{} {:.5f} {}".format(k, v, ',')
                 # 将消息输出到控制台
                 tqdm.write(log_msg, file=sys.stdout)
                 sys.stdout.flush()

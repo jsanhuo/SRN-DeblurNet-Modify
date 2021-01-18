@@ -42,7 +42,7 @@ if __name__ == '__main__' :
     for step , batch in tqdm(enumerate( dataloader ) , total = len(dataloader) ):
         for k in batch:
             if 'img' in k:
-                batch[k] = batch[k].cuda(async = True)
+                batch[k] = batch[k].cuda()
                 batch[k].requires_grad = False
 
         
